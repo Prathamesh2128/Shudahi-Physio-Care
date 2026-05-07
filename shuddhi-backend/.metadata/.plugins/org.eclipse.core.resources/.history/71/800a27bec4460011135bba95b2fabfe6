@@ -1,0 +1,10 @@
+package com.hospital.auth.service;
+
+import com.hospital.auth.dto.response.ApiResponse;
+import com.hospital.auth.dto.response.RegisterResponseDto;
+
+public class UserServiceImpl implements IUserService {
+	public ApiResponse<RegisterResponseDto> registerUser {
+		return null;
+	}
+}

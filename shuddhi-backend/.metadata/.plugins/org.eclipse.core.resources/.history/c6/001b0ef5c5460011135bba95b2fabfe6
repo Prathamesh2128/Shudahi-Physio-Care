@@ -1,0 +1,12 @@
+package com.hospital.auth.service;
+
+import com.hospital.auth.dto.response.ApiResponse;
+import com.hospital.auth.dto.response.RegisterResponseDto;
+
+public class UserServiceImpl implements IUserService {
+	@Override
+	public ApiResponse<RegisterResponseDto> registerUser() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+}

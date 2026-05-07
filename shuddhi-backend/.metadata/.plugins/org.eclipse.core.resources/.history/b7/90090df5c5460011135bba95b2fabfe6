@@ -1,0 +1,8 @@
+package com.hospital.auth.service;
+
+import com.hospital.auth.dto.response.ApiResponse;
+import com.hospital.auth.dto.response.RegisterResponseDto;
+
+public interface IUserService {
+	public ApiResponse<RegisterResponseDto> registerUser();
+}

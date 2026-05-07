@@ -1,0 +1,5 @@
+package com.hospital.enums;
+
+public enum RoleList {
+	ROLE_SUPERADMIN, ROLE_ADMIN, ROLE_DOCTOR, ROLE_PATIENT
+}

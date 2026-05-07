@@ -1,0 +1,246 @@
+package com.hospital.auth.config;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.hospital.auth.constants.PermissionConstants;
+import com.hospital.auth.entity.Permission;
+import com.hospital.auth.entity.Role;
+import com.hospital.auth.repository.PermissionRepository;
+import com.hospital.auth.repository.RoleRepository;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Component
+@AllArgsConstructor
+public class RolePermissionSeeder implements ApplicationRunner {
+
+	private final RoleRepository roleRepo;
+	private final PermissionRepository permissionRepo;
+
+	private static final List<String[]> ALL_PERMISSION = List.of(
+			new String[] { "auth", "login", "auth:login", "Login and obtain JWT tokens" },
+			new String[] { "auth", "logout", "auth:logout", "Logout and revoke session" },
+			new String[] { "admin", "manage_users", "admin:manage_users", "Create, update, deactivate users" },
+			new String[] { "admin", "manage_roles", "admin:manage_roles", "Assign and revoke roles" },
+			new String[] { "admin", "view_audit_log", "admin:view_audit_log", "View system audit trail" },
+			new String[] { "auth", "reset_any_password", "auth:reset_any_password", "Force-reset any user's password" },
+			new String[] { "patients", "view_all", "patients:view_all", "View all patient records" },
+			new String[] { "patients", "view_own", "patients:view_own", "View own patient profile" },
+			new String[] { "patients", "create", "patients:create", "Register a new patient" },
+			new String[] { "patients", "update", "patients:update", "Edit patient demographics" },
+			new String[] { "patients", "view_vitals", "patients:view_vitals", "Read patient vitals" },
+			new String[] { "patients", "record_vitals", "patients:record_vitals", "Record new vitals entry" },
+			new String[] { "patients", "view_allergies", "patients:view_allergies", "Read patient allergy list" },
+			new String[] { "patients", "manage_allergies", "patients:manage_allergies", "Add or update allergies" },
+			new String[] { "doctors", "view", "doctors:view", "View doctor profiles" },
+			new String[] { "doctors", "manage", "doctors:manage", "Create and update doctor profiles" },
+			new String[] { "departments", "view", "departments:view", "View departments" },
+			new String[] { "departments", "manage", "departments:manage", "Configure departments" },
+			new String[] { "staff", "view", "staff:view", "View staff records" },
+			new String[] { "staff", "manage", "staff:manage", "Create and update staff" },
+			new String[] { "schedules", "manage", "schedules:manage", "Set doctor schedules" },
+			new String[] { "appointments", "read_own", "appointments:read_own", "View own appointments" },
+			new String[] { "appointments", "read_all", "appointments:read_all", "View all appointments" },
+			new String[] { "appointments", "create", "appointments:create", "Book appointment" },
+			new String[] { "appointments", "update", "appointments:update", "Edit appointment" },
+			new String[] { "appointments", "cancel", "appointments:cancel", "Cancel appointment" },
+			new String[] { "appointments", "slots_manage", "appointments:slots_manage", "Manage doctor slots" },
+			new String[] { "medical_records", "read_own", "medical_records:read_own", "View own medical records" },
+			new String[] { "medical_records", "read_all", "medical_records:read_all", "View all medical records" },
+			new String[] { "medical_records", "write", "medical_records:write", "Create diagnosis and notes" },
+			new String[] { "prescriptions", "create", "prescriptions:create", "Issue a prescription" },
+			new String[] { "prescriptions", "read", "prescriptions:read", "Read any prescription" },
+			new String[] { "prescriptions", "read_own", "prescriptions:read_own", "Read own prescriptions" },
+			new String[] { "lab", "order_test", "lab:order_test", "Order a lab test" },
+			new String[] { "lab", "view_orders", "lab:view_orders", "View lab orders" },
+			new String[] { "lab", "view_own_results", "lab:view_own_results", "View own lab results" },
+			new String[] { "lab", "collect_sample", "lab:collect_sample", "Mark sample collected" },
+			new String[] { "lab", "upload_results", "lab:upload_results", "Enter lab result values" },
+			new String[] { "lab", "verify_results", "lab:verify_results", "Verify and approve results" },
+			new String[] { "lab", "manage_tests", "lab:manage_tests", "Configure lab test catalogue" },
+			new String[] { "pharmacy", "view_queue", "pharmacy:view_queue", "View dispensing queue" },
+			new String[] { "pharmacy", "dispense", "pharmacy:dispense", "Dispense medicine" },
+			new String[] { "pharmacy", "view_inventory", "pharmacy:view_inventory", "View stock levels" },
+			new String[] { "pharmacy", "manage_stock", "pharmacy:manage_stock", "Update stock quantities" },
+			new String[] { "pharmacy", "manage_medicines", "pharmacy:manage_medicines", "Manage medicine catalogue" },
+			new String[] { "ward", "view", "ward:view", "View wards and beds" },
+			new String[] { "ward", "manage_beds", "ward:manage_beds", "Configure wards and beds" },
+			new String[] { "ward", "admit_patient", "ward:admit_patient", "Admit a patient" },
+			new String[] { "ward", "transfer_patient", "ward:transfer_patient", "Transfer between wards" },
+			new String[] { "ward", "discharge_patient", "ward:discharge_patient", "Discharge a patient" },
+			new String[] { "billing", "view_own", "billing:view_own", "View own invoices" },
+			new String[] { "billing", "view_all", "billing:view_all", "View all invoices" },
+			new String[] { "billing", "create_invoice", "billing:create_invoice", "Create draft invoices" },
+			new String[] { "billing", "finalize_invoice", "billing:finalize_invoice", "Finalise and issue invoice" },
+			new String[] { "billing", "process_payment", "billing:process_payment", "Record a payment" },
+			new String[] { "billing", "apply_discount", "billing:apply_discount", "Apply discount" },
+			new String[] { "billing", "view_ledger", "billing:view_ledger", "View financial ledger" },
+			new String[] { "billing", "export_reports", "billing:export_reports", "Export billing reports" },
+			new String[] { "notify", "receive", "notify:receive", "Receive notifications" },
+			new String[] { "notify", "manage_templates", "notify:manage_templates", "Manage notification templates" },
+			new String[] { "notify", "view_logs", "notify:view_logs", "View notification logs" });
+
+	// Role → permission slugs mapping
+	private static final Map<String, Set<String>> ROLE_PERMISSION_MAP = new LinkedHashMap<>();
+	static {
+		ROLE_PERMISSION_MAP.put("ROLE_SUPERADMIN",
+				Set.of(PermissionConstants.AUTH_LOGIN, PermissionConstants.AUTH_LOGOUT,
+						PermissionConstants.ADMIN_MANAGE_USERS, PermissionConstants.ADMIN_MANAGE_ROLES,
+						PermissionConstants.ADMIN_VIEW_AUDIT_LOG, PermissionConstants.AUTH_RESET_ANY_PASSWORD,
+						PermissionConstants.PATIENTS_VIEW_ALL, PermissionConstants.PATIENTS_CREATE,
+						PermissionConstants.PATIENTS_UPDATE, PermissionConstants.PATIENTS_VIEW_VITALS,
+						PermissionConstants.PATIENTS_RECORD_VITALS, PermissionConstants.PATIENTS_VIEW_ALLERGIES,
+						PermissionConstants.PATIENTS_MANAGE_ALLERGIES, PermissionConstants.DOCTORS_VIEW,
+						PermissionConstants.DOCTORS_MANAGE, PermissionConstants.DEPARTMENTS_VIEW,
+						PermissionConstants.DEPARTMENTS_MANAGE, PermissionConstants.STAFF_VIEW,
+						PermissionConstants.STAFF_MANAGE, PermissionConstants.SCHEDULES_MANAGE,
+						PermissionConstants.APPOINTMENTS_READ_ALL, PermissionConstants.APPOINTMENTS_CREATE,
+						PermissionConstants.APPOINTMENTS_UPDATE, PermissionConstants.APPOINTMENTS_CANCEL,
+						PermissionConstants.APPOINTMENTS_SLOTS_MANAGE, PermissionConstants.MEDICAL_RECORDS_READ_ALL,
+						PermissionConstants.MEDICAL_RECORDS_WRITE, PermissionConstants.PRESCRIPTIONS_CREATE,
+						PermissionConstants.PRESCRIPTIONS_READ, PermissionConstants.LAB_ORDER_TEST,
+						PermissionConstants.LAB_VIEW_ORDERS, PermissionConstants.LAB_COLLECT_SAMPLE,
+						PermissionConstants.LAB_UPLOAD_RESULTS, PermissionConstants.LAB_VERIFY_RESULTS,
+						PermissionConstants.LAB_MANAGE_TESTS, PermissionConstants.PHARMACY_VIEW_QUEUE,
+						PermissionConstants.PHARMACY_DISPENSE, PermissionConstants.PHARMACY_VIEW_INVENTORY,
+						PermissionConstants.PHARMACY_MANAGE_STOCK, PermissionConstants.PHARMACY_MANAGE_MEDICINES,
+						PermissionConstants.WARD_VIEW, PermissionConstants.WARD_MANAGE_BEDS,
+						PermissionConstants.WARD_ADMIT_PATIENT, PermissionConstants.WARD_TRANSFER_PATIENT,
+						PermissionConstants.WARD_DISCHARGE_PATIENT, PermissionConstants.BILLING_VIEW_ALL,
+						PermissionConstants.BILLING_CREATE_INVOICE, PermissionConstants.BILLING_FINALIZE_INVOICE,
+						PermissionConstants.BILLING_PROCESS_PAYMENT, PermissionConstants.BILLING_APPLY_DISCOUNT,
+						PermissionConstants.BILLING_VIEW_LEDGER, PermissionConstants.BILLING_EXPORT_REPORTS,
+						PermissionConstants.NOTIFY_RECEIVE, PermissionConstants.NOTIFY_MANAGE_TEMPLATES,
+						PermissionConstants.NOTIFY_VIEW_LOGS));
+
+		ROLE_PERMISSION_MAP.put("ROLE_ADMIN",
+				Set.of(PermissionConstants.AUTH_LOGIN, PermissionConstants.AUTH_LOGOUT,
+						PermissionConstants.ADMIN_MANAGE_USERS, PermissionConstants.ADMIN_VIEW_AUDIT_LOG,
+						PermissionConstants.PATIENTS_VIEW_ALL, PermissionConstants.PATIENTS_CREATE,
+						PermissionConstants.PATIENTS_UPDATE, PermissionConstants.PATIENTS_VIEW_VITALS,
+						PermissionConstants.PATIENTS_VIEW_ALLERGIES, PermissionConstants.DOCTORS_VIEW,
+						PermissionConstants.DOCTORS_MANAGE, PermissionConstants.DEPARTMENTS_VIEW,
+						PermissionConstants.DEPARTMENTS_MANAGE, PermissionConstants.STAFF_VIEW,
+						PermissionConstants.STAFF_MANAGE, PermissionConstants.SCHEDULES_MANAGE,
+						PermissionConstants.APPOINTMENTS_READ_ALL, PermissionConstants.APPOINTMENTS_CREATE,
+						PermissionConstants.APPOINTMENTS_UPDATE, PermissionConstants.APPOINTMENTS_CANCEL,
+						PermissionConstants.APPOINTMENTS_SLOTS_MANAGE, PermissionConstants.MEDICAL_RECORDS_READ_ALL,
+						PermissionConstants.PRESCRIPTIONS_READ, PermissionConstants.LAB_ORDER_TEST,
+						PermissionConstants.LAB_VIEW_ORDERS, PermissionConstants.LAB_MANAGE_TESTS,
+						PermissionConstants.PHARMACY_VIEW_QUEUE, PermissionConstants.PHARMACY_VIEW_INVENTORY,
+						PermissionConstants.PHARMACY_MANAGE_STOCK, PermissionConstants.PHARMACY_MANAGE_MEDICINES,
+						PermissionConstants.WARD_VIEW, PermissionConstants.WARD_MANAGE_BEDS,
+						PermissionConstants.WARD_ADMIT_PATIENT, PermissionConstants.WARD_TRANSFER_PATIENT,
+						PermissionConstants.WARD_DISCHARGE_PATIENT, PermissionConstants.BILLING_VIEW_ALL,
+						PermissionConstants.BILLING_CREATE_INVOICE, PermissionConstants.BILLING_FINALIZE_INVOICE,
+						PermissionConstants.BILLING_PROCESS_PAYMENT, PermissionConstants.BILLING_APPLY_DISCOUNT,
+						PermissionConstants.BILLING_VIEW_LEDGER, PermissionConstants.BILLING_EXPORT_REPORTS,
+						PermissionConstants.NOTIFY_RECEIVE, PermissionConstants.NOTIFY_MANAGE_TEMPLATES,
+						PermissionConstants.NOTIFY_VIEW_LOGS));
+
+		ROLE_PERMISSION_MAP.put("ROLE_DOCTOR",
+				Set.of(PermissionConstants.AUTH_LOGIN, PermissionConstants.AUTH_LOGOUT,
+						PermissionConstants.PATIENTS_VIEW_ALL, PermissionConstants.PATIENTS_UPDATE,
+						PermissionConstants.PATIENTS_VIEW_VITALS, PermissionConstants.PATIENTS_VIEW_ALLERGIES,
+						PermissionConstants.DOCTORS_VIEW, PermissionConstants.DEPARTMENTS_VIEW,
+						PermissionConstants.SCHEDULES_MANAGE, PermissionConstants.APPOINTMENTS_READ_ALL,
+						PermissionConstants.APPOINTMENTS_UPDATE, PermissionConstants.APPOINTMENTS_CANCEL,
+						PermissionConstants.MEDICAL_RECORDS_READ_ALL, PermissionConstants.MEDICAL_RECORDS_WRITE,
+						PermissionConstants.PRESCRIPTIONS_CREATE, PermissionConstants.PRESCRIPTIONS_READ,
+						PermissionConstants.LAB_ORDER_TEST, PermissionConstants.LAB_VIEW_ORDERS,
+						PermissionConstants.PHARMACY_VIEW_QUEUE, PermissionConstants.PHARMACY_VIEW_INVENTORY,
+						PermissionConstants.WARD_VIEW, PermissionConstants.WARD_ADMIT_PATIENT,
+						PermissionConstants.WARD_TRANSFER_PATIENT, PermissionConstants.WARD_DISCHARGE_PATIENT,
+						PermissionConstants.BILLING_VIEW_ALL, PermissionConstants.NOTIFY_RECEIVE));
+
+		ROLE_PERMISSION_MAP.put("ROLE_NURCE",
+				Set.of(PermissionConstants.AUTH_LOGIN, PermissionConstants.AUTH_LOGOUT,
+						PermissionConstants.PATIENTS_VIEW_ALL, PermissionConstants.PATIENTS_VIEW_VITALS,
+						PermissionConstants.PATIENTS_RECORD_VITALS, PermissionConstants.PATIENTS_VIEW_ALLERGIES,
+						PermissionConstants.DOCTORS_VIEW, PermissionConstants.DEPARTMENTS_VIEW,
+						PermissionConstants.APPOINTMENTS_READ_ALL, PermissionConstants.MEDICAL_RECORDS_READ_ALL,
+						PermissionConstants.PRESCRIPTIONS_READ, PermissionConstants.LAB_ORDER_TEST,
+						PermissionConstants.LAB_VIEW_ORDERS, PermissionConstants.PHARMACY_VIEW_INVENTORY,
+						PermissionConstants.WARD_VIEW, PermissionConstants.WARD_ADMIT_PATIENT,
+						PermissionConstants.WARD_TRANSFER_PATIENT, PermissionConstants.WARD_DISCHARGE_PATIENT,
+						PermissionConstants.NOTIFY_RECEIVE));
+
+		ROLE_PERMISSION_MAP.put("ROLE_RECEPTIONIST",
+				Set.of(PermissionConstants.AUTH_LOGIN, PermissionConstants.AUTH_LOGOUT,
+						PermissionConstants.PATIENTS_VIEW_ALL, PermissionConstants.PATIENTS_CREATE,
+						PermissionConstants.PATIENTS_UPDATE, PermissionConstants.DOCTORS_VIEW,
+						PermissionConstants.DEPARTMENTS_VIEW, PermissionConstants.APPOINTMENTS_READ_ALL,
+						PermissionConstants.APPOINTMENTS_CREATE, PermissionConstants.APPOINTMENTS_UPDATE,
+						PermissionConstants.APPOINTMENTS_CANCEL, PermissionConstants.PRESCRIPTIONS_READ,
+						PermissionConstants.WARD_VIEW, PermissionConstants.BILLING_VIEW_ALL,
+						PermissionConstants.BILLING_CREATE_INVOICE, PermissionConstants.BILLING_FINALIZE_INVOICE,
+						PermissionConstants.BILLING_PROCESS_PAYMENT, PermissionConstants.NOTIFY_RECEIVE));
+
+		ROLE_PERMISSION_MAP.put("ROLE_LABTECHNICIAN",
+				Set.of(PermissionConstants.AUTH_LOGIN, PermissionConstants.AUTH_LOGOUT,
+						PermissionConstants.PATIENTS_VIEW_ALL, PermissionConstants.PATIENTS_VIEW_VITALS,
+						PermissionConstants.DOCTORS_VIEW, PermissionConstants.PRESCRIPTIONS_READ,
+						PermissionConstants.LAB_VIEW_ORDERS, PermissionConstants.LAB_COLLECT_SAMPLE,
+						PermissionConstants.LAB_UPLOAD_RESULTS, PermissionConstants.LAB_VERIFY_RESULTS,
+						PermissionConstants.NOTIFY_RECEIVE));
+
+		ROLE_PERMISSION_MAP.put("ROLE_PHARMACIST",
+				Set.of(PermissionConstants.AUTH_LOGIN, PermissionConstants.AUTH_LOGOUT,
+						PermissionConstants.PATIENTS_VIEW_ALL, PermissionConstants.PRESCRIPTIONS_READ,
+						PermissionConstants.PHARMACY_VIEW_QUEUE, PermissionConstants.PHARMACY_DISPENSE,
+						PermissionConstants.PHARMACY_VIEW_INVENTORY, PermissionConstants.PHARMACY_MANAGE_STOCK,
+						PermissionConstants.PHARMACY_MANAGE_MEDICINES, PermissionConstants.NOTIFY_RECEIVE));
+
+		ROLE_PERMISSION_MAP.put("ROLE_ACCOUNTANT",
+				Set.of(PermissionConstants.AUTH_LOGIN, PermissionConstants.AUTH_LOGOUT,
+						PermissionConstants.PATIENTS_VIEW_ALL, PermissionConstants.DOCTORS_VIEW,
+						PermissionConstants.DEPARTMENTS_VIEW, PermissionConstants.APPOINTMENTS_READ_ALL,
+						PermissionConstants.LAB_VIEW_ORDERS, PermissionConstants.PHARMACY_VIEW_INVENTORY,
+						PermissionConstants.WARD_VIEW, PermissionConstants.BILLING_VIEW_ALL,
+						PermissionConstants.BILLING_CREATE_INVOICE, PermissionConstants.BILLING_FINALIZE_INVOICE,
+						PermissionConstants.BILLING_PROCESS_PAYMENT, PermissionConstants.BILLING_APPLY_DISCOUNT,
+						PermissionConstants.BILLING_VIEW_LEDGER, PermissionConstants.BILLING_EXPORT_REPORTS,
+						PermissionConstants.NOTIFY_RECEIVE));
+
+		ROLE_PERMISSION_MAP.put("ROLE_PATIENT",
+				Set.of(PermissionConstants.AUTH_LOGIN, PermissionConstants.AUTH_LOGOUT,
+						PermissionConstants.PATIENTS_VIEW_OWN, PermissionConstants.DOCTORS_VIEW,
+						PermissionConstants.APPOINTMENTS_READ_OWN, PermissionConstants.APPOINTMENTS_CREATE,
+						PermissionConstants.APPOINTMENTS_CANCEL, PermissionConstants.MEDICAL_RECORDS_READ_OWN,
+						PermissionConstants.PRESCRIPTIONS_READ_OWN, PermissionConstants.LAB_VIEW_OWN_RESULTS,
+						PermissionConstants.BILLING_VIEW_OWN, PermissionConstants.NOTIFY_RECEIVE));
+	}
+
+	@Override
+	@Transactional
+	public void run(ApplicationArguments args) throws Exception {
+		seedPermission();
+		seedRoles();
+		log.info("Role and Permission seeding completed.");
+	}
+
+	private void seedPermission() {
+		for (String[] p : ALL_PERMISSION) {
+			if (permissionRepo.fingBySlug(p[2].isEmpty())) {
+				permissionRepo
+						.save(Permission.builder().module(p[0]).action(p[1]).slug(p[2]).description(p[3]).build());
+			}
+		}
+	}
+
+	private void seedRoles() {
+		ROLE_PERMISSION_MAP.forEach((slug, permSlug)-> {
+			Role role = roleRepo.finby
+		});
+	}
+}

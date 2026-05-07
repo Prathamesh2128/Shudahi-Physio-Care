@@ -1,0 +1,19 @@
+package com.hospital.auth.service;
+
+import com.hospital.auth.dto.request.RegisterRequestDto;
+import com.hospital.auth.dto.response.ApiResponse;
+import com.hospital.auth.dto.response.RegisterResponseDto;
+import com.hospital.auth.entity.User;
+
+public class UserServiceImpl implements IUserService {
+	@Override
+	public ApiResponse<RegisterResponseDto> registerUser(RegisterRequestDto userReqDto) {
+		User user = new User();
+		user.setUsername(userReqDto.getUsername());
+		user.setEmail(userReqDto.getEmail());
+		user.setPasswordHash(userReqDto.getPassword());
+		user.setPhone(userReqDto.getPhone());
+		
+		return null;
+	}
+}

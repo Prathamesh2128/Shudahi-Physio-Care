@@ -1,0 +1,51 @@
+package com.hospital.auth.service;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.hospital.auth.dto.request.RegisterRequestDto;
+import com.hospital.auth.dto.response.RegisterResponseDto;
+import com.hospital.auth.entity.Role;
+import com.hospital.auth.entity.User;
+import com.hospital.auth.enums.RoleList;
+import com.hospital.auth.repository.RoleRepository;
+import com.hospital.auth.repository.UserRepository;
+
+@Service
+@org.springframework.transaction.annotation.Transactional
+public class AuthServiceImpl implements IAuthService {
+	@Autowired
+	UserRepository userRepo;
+
+	@Autowired
+	RoleRepository roleRepo;
+
+	@Override
+	public RegisterResponseDto registerUser(RegisterRequestDto userReqDto) {
+		Set<Role> roleSet = new HashSet<>();
+		for (RoleList r : userReqDto.getRoles()) {
+			Role role = roleRepo.findByRole(r).orElseThrow();
+			roleSet.add(role);
+		}
+		User user = new User();
+		user.setFullName(userReqDto.getFullName());
+		user.setUsername(userReqDto.getUsername());
+		user.setEmail(userReqDto.getEmail());
+		user.setPasswordHash(userReqDto.getPassword());
+		user.setPhone(userReqDto.getPhone());
+		user.setRole(roleSet);
+		userRepo.save(user);
+
+		RegisterResponseDto regResDto = new RegisterResponseDto();
+		regResDto.setFullName(userReqDto.getFullName());
+		regResDto.setUsername(userReqDto.getUsername());
+		regResDto.setEmail(userReqDto.getEmail());
+		regResDto.setPhone(userReqDto.getPhone());
+		user.setRole(roleSet);
+
+		return regResDto;
+	}
+}

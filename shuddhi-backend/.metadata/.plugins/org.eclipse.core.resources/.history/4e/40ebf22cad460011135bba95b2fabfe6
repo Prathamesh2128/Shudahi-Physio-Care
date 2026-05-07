@@ -1,0 +1,5 @@
+package com.hospital.auth.dto.response.auth;
+
+public class LoginResponseDto {
+
+}

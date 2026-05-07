@@ -1,0 +1,5 @@
+package com.hospital.auth.dto.request;
+
+public class RegisterRequestDto {
+
+}

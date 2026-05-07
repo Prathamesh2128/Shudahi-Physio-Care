@@ -1,0 +1,12 @@
+package com.hospital.entity;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Entity;
+
+@Entity
+public class UserPermission extends BaseEntity {
+	private Role role;
+	private Permission permission;
+	private LocalDateTime grantedAt;
+}

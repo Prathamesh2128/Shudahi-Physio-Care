@@ -1,0 +1,8 @@
+package com.hospital.entity;
+
+import jakarta.persistence.Entity;
+
+@Entity
+public class JwtToken extends BaseEntity{
+
+}

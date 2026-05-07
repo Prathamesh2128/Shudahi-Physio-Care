@@ -1,0 +1,24 @@
+package com.hospital.entity;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+
+@Entity
+public class UserRole extends BaseEntity {
+	@ManyToOne
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
+
+	@ManyToOne
+	@JoinColumn(name = "role_id", nullable = false)
+	private Role role;
+
+	@ManyToOne
+	@JoinColumn(name = "assigned_at")
+	private User assignedBy;
+
+	private LocalDateTime assignedAt;
+}

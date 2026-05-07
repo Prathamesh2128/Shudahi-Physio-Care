@@ -1,0 +1,6 @@
+package com.hospital.auth.dto;
+
+public class UserResponse {
+	private String message;
+	private int responseCode;
+}

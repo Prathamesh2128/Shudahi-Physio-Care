@@ -1,0 +1,8 @@
+package com.hospital.entity;
+
+public class Permission extends BaseEntity {
+	private String name;
+	private String module;
+	private String action;
+	private String description;
+}

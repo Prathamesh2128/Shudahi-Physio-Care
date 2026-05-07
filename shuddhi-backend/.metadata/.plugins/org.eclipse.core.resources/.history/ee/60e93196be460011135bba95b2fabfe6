@@ -1,0 +1,28 @@
+package com.hospital.auth.entity;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+
+@Entity
+public class AuditLogs {
+	@ManyToOne
+	@JoinColumn(name = "user_id")
+	private User user;
+
+	private String action;
+	private String module;
+	private String tableName;
+	private String recordId;
+	private String oldValus;
+	private String newValus;
+
+	@Column(length = 45)
+	private String ipAddress;
+
+	@Column(nullable = false, updatable = false)
+	private LocalDateTime createdAt;
+}
