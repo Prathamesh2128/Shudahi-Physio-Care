@@ -37,7 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		String token = extractBearerToken(req);
 		if (StringUtils.hasText(token)) {
 			try {
-				if (tokenService.isTokenValid(token)) {
+				if (tokenService.isTokenValid(token)) {	//!tokenService.isTokenValid(token)
 					res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token is invalid or has been revoked");
 					return;
 				}
