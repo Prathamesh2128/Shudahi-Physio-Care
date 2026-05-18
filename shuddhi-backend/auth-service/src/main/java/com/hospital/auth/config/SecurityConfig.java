@@ -54,8 +54,8 @@ public class SecurityConfig {
 					res.setContentType("application/json");
 					res.setStatus(403);
 					res.getWriter().write("{\"success\":false,\"error\":\"Access denied\"}");
-				})).addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+				})).addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)	//Insert my filters BEFORE UsernamePasswordAuthenticationFilter
+				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);	//Insert my filters BEFORE UsernamePasswordAuthenticationFilter
 
 		return http.build();
 	}
