@@ -80,7 +80,7 @@ public class TokenServiceImpl {
 	public boolean isTokenValid(String token) {
 		try {
 			Claims c = extractAllClaims(token);
-			return isBlacklisted(c.getId());
+			return isBlacklisted(c.getId());	//return !isBlacklisted(c.getId());
 		} catch (JwtException e) {
 			log.debug("Token validation failed: {}", e.getMessage());
 			return false;
