@@ -1,8 +1,0 @@
-package com.hospital.auth.constants;
-
-import lombok.NoArgsConstructor;
-
-@NoArgsConstructor
-public final class PermissionConstants {
-
-}

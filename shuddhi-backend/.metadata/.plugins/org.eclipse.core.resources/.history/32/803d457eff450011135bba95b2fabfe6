@@ -1,8 +1,0 @@
-package com.hospital.entity;
-
-import jakarta.persistence.Entity;
-
-@Entity
-public class AuditLogs extends BaseEntity {
-
-}

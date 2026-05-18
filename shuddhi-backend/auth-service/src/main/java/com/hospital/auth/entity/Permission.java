@@ -1,5 +1,7 @@
 package com.hospital.auth.entity;
 
+import com.hospital.entity.BaseEntity;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import lombok.AllArgsConstructor;

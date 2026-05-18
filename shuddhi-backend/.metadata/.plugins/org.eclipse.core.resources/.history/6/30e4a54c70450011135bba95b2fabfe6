@@ -1,7 +1,0 @@
-package com.hospital.entity;
-
-import com.hospital.enums.RoleList;
-
-public class Role {
-	private RoleList role;
-}

@@ -1,7 +1,0 @@
-package com.hospital.auth.service;
-
-import com.hospital.auth.dto.response.UserResponse;
-
-public interface IUserService {
-	public UserResponse registerUser();
-}

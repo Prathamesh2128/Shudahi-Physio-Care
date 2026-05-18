@@ -1,9 +1,0 @@
-package com.hospital.entity;
-
-import jakarta.persistence.Entity;
-
-@Entity
-public class UserRole extends BaseEntity {
-	private User user;
-	private Role role;
-}

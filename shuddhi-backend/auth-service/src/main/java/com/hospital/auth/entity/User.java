@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+import com.hospital.entity.BaseEntity;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;

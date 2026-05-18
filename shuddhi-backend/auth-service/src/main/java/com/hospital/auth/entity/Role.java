@@ -3,6 +3,8 @@ package com.hospital.auth.entity;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.hospital.entity.BaseEntity;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -17,10 +19,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Builder
-@AllArgsConstructor
-@NoArgsConstructor
 @Getter
 @Setter
+@AllArgsConstructor
+@NoArgsConstructor
 @Entity
 @Table(name = "roles")
 public class Role extends BaseEntity {

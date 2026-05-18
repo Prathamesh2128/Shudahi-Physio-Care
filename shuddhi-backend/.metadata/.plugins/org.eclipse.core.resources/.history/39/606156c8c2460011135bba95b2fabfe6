@@ -1,8 +1,0 @@
-package com.hospital.auth.dto.response;
-
-import lombok.Setter;
-
-@Setter
-public class ApiResponse<T> {
-	private T data;
-}
