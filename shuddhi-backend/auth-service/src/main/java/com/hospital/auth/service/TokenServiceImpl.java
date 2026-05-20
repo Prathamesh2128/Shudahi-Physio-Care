@@ -1,7 +1,9 @@
 package com.hospital.auth.service;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -9,8 +11,8 @@ import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 
-import org.springframework.stereotype.Service;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
 
 import com.hospital.auth.config.JwtConfig;
 import com.hospital.auth.entity.User;
@@ -29,6 +31,7 @@ public class TokenServiceImpl {
 
 	private final JwtConfig jwtConfig;
 	private final StringRedisTemplate redis;
+
 	// ── Access token ──────────────────────────────────────────────
 	// Generate a signed HS256 access token.
 
@@ -61,6 +64,20 @@ public class TokenServiceImpl {
 		return token;
 	}
 
+	// ── Refresh token ─────────────────────────────────────────────
+
+	// Refresh token is minimal - Only Sub + jit +exp.
+	// No Permission or roles - those are re-fetch form DB on refresh.
+	// This ensure role changes take effect
+	// at the next refresh.
+
+	public String generateRefreshToken(User user) {
+		Date now = new Date();
+		Date expiry = new Date(now.getTime() + (long) jwtConfig.getRefreshExpiryDays() * 86_400_000L);
+		return Jwts.builder().id(UUID.randomUUID().toString()).subject(user.getId().toString()).issuedAt(now)
+				.expiration(expiry).signWith(getRefreshKey()).compact();
+	}
+
 	// ── Claim extraction ──────────────────────────────────────────
 	public Claims extractAllClaims(String token) {
 		return Jwts.parser().verifyWith(getAccessKey()).build().parseSignedClaims(token).getPayload();
@@ -77,13 +94,25 @@ public class TokenServiceImpl {
 		return Boolean.TRUE.equals(redis.hasKey("blacklist:jti:" + jti));
 	}
 
+	// ── Validity check ────────────────────────────────────────────
 	public boolean isTokenValid(String token) {
 		try {
 			Claims c = extractAllClaims(token);
-			return isBlacklisted(c.getId());	//return !isBlacklisted(c.getId());
+			return isBlacklisted(c.getId()); // return !isBlacklisted(c.getId());
 		} catch (JwtException e) {
 			log.debug("Token validation failed: {}", e.getMessage());
 			return false;
+		}
+	}
+
+	// ── SHA-256 hash ──────────────────────────────────────────────
+	public String hashToken(String raw) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
+			return Base64.getEncoder().encodeToString(hash);
+		} catch (Exception e) {
+			throw new RuntimeException("Token hashing failed", e);
 		}
 	}
 
@@ -92,4 +121,7 @@ public class TokenServiceImpl {
 		return Keys.hmacShaKeyFor(jwtConfig.getAccessSecret().getBytes(StandardCharsets.UTF_8));
 	}
 
+	private SecretKey getRefreshKey() {
+		return Keys.hmacShaKeyFor(jwtConfig.getRefreshSecret().getBytes(StandardCharsets.UTF_8));
+	}
 }

@@ -17,10 +17,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 	 * DISTINCT keyword removes duplicates produced by the cartesian JOIN.
 	 */
 	@Query("""
-			SELECT DISTINCT u FROM USER u
+			SELECT DISTINCT u FROM User u
 			LEFT JOIN FETCH u.roles r
 			LEFT JOIN FETCH r.permissions
-			WHERE LOWER(u.email) LOWER(:email)
+			WHERE LOWER(u.email) = LOWER(:email)
 			""")
 	Optional<User> findByEmailIgnoreCaseWithRoleAndPermission(@Param("email") String email);
 

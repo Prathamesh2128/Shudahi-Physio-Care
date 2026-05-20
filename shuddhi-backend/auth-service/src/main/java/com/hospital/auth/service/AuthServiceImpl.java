@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.security.auth.login.AccountLockedException;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,15 +15,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hospital.auth.dto.request.LoginRequestDto;
 import com.hospital.auth.dto.request.RegisterRequestDto;
-import com.hospital.auth.dto.response.LoginResponseDto;
 import com.hospital.auth.dto.response.RegisterResponseDto;
 import com.hospital.auth.dto.response.UserResponseDto;
 import com.hospital.auth.entity.Permission;
+import com.hospital.auth.entity.RefreshToken;
 import com.hospital.auth.entity.Role;
 import com.hospital.auth.entity.User;
+import com.hospital.auth.exception.AccountLockedException;
 import com.hospital.auth.exception.ForbiddenException;
 import com.hospital.auth.exception.NotFoundException;
 import com.hospital.auth.exception.UnauthorizedException;
+import com.hospital.auth.mapper.UserMapper;
+import com.hospital.auth.repository.RefreshTokenRepository;
 import com.hospital.auth.repository.RoleRepository;
 import com.hospital.auth.repository.UserRepository;
 
@@ -42,6 +43,9 @@ public class AuthServiceImpl implements IAuthService {
 	private final AuditService auditService;
 	private final PasswordEncoder passwordEncoder;
 	private final TokenServiceImpl tokenService;
+	private final RefreshTokenRepository refreshTokenRepository;
+	private final CacheEvictionService cacheEvictionService;
+	private final UserMapper userMapper;
 
 	@Value("${hms.security.max-login-attempts:5}")
 	private int maxLoginAttempts;
@@ -87,7 +91,7 @@ public class AuthServiceImpl implements IAuthService {
 	}
 
 	@Override
-	@Transactional(rollbackFor = Exception.class)
+	@Transactional
 	public LoginResult login(LoginRequestDto req, String ipAddress, String deviceInfo) {
 		// 1. Load user — generic message to prevent email enumeration
 		User user = userRepository.findByEmailIgnoreCaseWithRoleAndPermission(req.getEmail()).orElseThrow(() -> {
@@ -128,13 +132,26 @@ public class AuthServiceImpl implements IAuthService {
 		userRepository.save(user);
 
 		// 7. Collect permissions from all assigned roles
-		List<String> permission = collectPermissions(user);
+		List<String> permissions = collectPermissions(user);
 
 		// 8. Generate tokens
-		String accessToken = tokenService.generateAccessToken(user, permission);
+		String accessToken = tokenService.generateAccessToken(user, permissions);
 		String refreshToken = tokenService.generateRefreshToken(user);
 
-		return LoginResponseDto.builder().username(user.getUsername()).phone(user.getPhone()).build();
+		// 9. Persist refresh token (stored as SHA-256 hash, never raw)
+		String tokenHash = tokenService.hashToken(refreshToken);
+		refreshTokenRepository.save(RefreshToken.builder().user(user).tokenHash(tokenHash).deviceInfo(deviceInfo)
+				.ipAddress(ipAddress).issuedAt(LocalDateTime.now()).expiresAt(LocalDateTime.now().plusDays(7)).build());
+
+		// 10. Evict any stale cached profile so /me returns fresh permissions
+		cacheEvictionService.evictUserProfile(user.getId());
+
+		// 11. Async audit log
+		auditService.log(user.getId(), "login.success", "user", user.getId(), null, null, ipAddress);
+
+		List<String> roleSlugs = user.getRoles().stream().map(Role::getSlug).sorted().collect(Collectors.toList());
+
+		return new LoginResult(accessToken, refreshToken, userMapper.toUserResponse(user, roleSlugs, permissions));
 	}
 
 	private List<String> collectPermissions(User user) {
