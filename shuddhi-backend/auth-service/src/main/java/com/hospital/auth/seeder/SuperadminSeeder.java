@@ -5,6 +5,7 @@ import java.util.Set;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.hospital.auth.entity.Role;
@@ -23,6 +24,7 @@ public class SuperadminSeeder implements ApplicationRunner {
 
 	private final UserRepository userRepo;
 	private final RoleRepository roleRepo;
+	private final PasswordEncoder passwordEncoder;
 
 	@Override
 	public void run(ApplicationArguments args) throws Exception {
@@ -39,7 +41,7 @@ public class SuperadminSeeder implements ApplicationRunner {
 		user.setEmail("superadmin@hospital.com");
 		user.setEmployeeId("1");
 		user.setFullName("Super Admin");
-		user.setPasswordHash("Superadmin@123");
+		user.setPasswordHash(passwordEncoder.encode("Superadmin@123"));
 		user.setPhone("9821907236");
 		user.setUsername("Superadmin");
 		user.setRoles(Set.of(superadmin));
