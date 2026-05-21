@@ -45,7 +45,7 @@ public class SecurityConfig {
 						.requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/forgot-password",
 								"/api/v1/auth/reset-password", "/api/v1/auth/verify-email",
 								"/api/v1/auth/resend-verification", "/api/v1/auth/refresh", "/actuator/health")
-						.permitAll().anyRequest().authenticated())
+						.permitAll().anyRequest().authenticated())	//User must be authenticated.   Is Authentication present in SecurityContext?
 				.exceptionHandling(ex -> ex.authenticationEntryPoint((req, res, e) -> {
 					res.setContentType("application/json");
 					res.setStatus(401);
