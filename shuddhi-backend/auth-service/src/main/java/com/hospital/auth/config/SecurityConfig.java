@@ -22,7 +22,9 @@ import com.hospital.auth.filter.JwtAuthenticationFilter;
 import com.hospital.auth.filter.RateLimitFilter;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -45,7 +47,8 @@ public class SecurityConfig {
 						.requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/forgot-password",
 								"/api/v1/auth/reset-password", "/api/v1/auth/verify-email",
 								"/api/v1/auth/resend-verification", "/api/v1/auth/refresh", "/actuator/health")
-						.permitAll().anyRequest().authenticated())	//User must be authenticated.   Is Authentication present in SecurityContext?
+						.permitAll().anyRequest().authenticated()) // User must be authenticated. Is Authentication
+																	// present in SecurityContext?
 				.exceptionHandling(ex -> ex.authenticationEntryPoint((req, res, e) -> {
 					res.setContentType("application/json");
 					res.setStatus(401);
@@ -54,8 +57,11 @@ public class SecurityConfig {
 					res.setContentType("application/json");
 					res.setStatus(403);
 					res.getWriter().write("{\"success\":false,\"error\":\"Access denied\"}");
-				})).addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)	//Insert my filters BEFORE UsernamePasswordAuthenticationFilter
-				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);	//Insert my filters BEFORE UsernamePasswordAuthenticationFilter
+				})).addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class) // Insert my filters
+																									// BEFORE
+																									// UsernamePasswordAuthenticationFilter
+				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class); // Insert my filters BEFORE
+																							// UsernamePasswordAuthenticationFilter
 
 		return http.build();
 	}

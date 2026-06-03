@@ -44,6 +44,7 @@ public class SuperadminSeeder implements ApplicationRunner {
 		user.setPasswordHash(passwordEncoder.encode("Superadmin@123"));
 		user.setPhone("9821907236");
 		user.setUsername("Superadmin");
+		user.setEmailVerified(true);
 		user.setRoles(Set.of(superadmin));
 		userRepo.save(user);
 	}

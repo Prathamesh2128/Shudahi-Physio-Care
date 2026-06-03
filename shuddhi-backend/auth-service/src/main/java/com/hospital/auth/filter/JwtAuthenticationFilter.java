@@ -28,23 +28,26 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
 	private final TokenServiceImpl tokenService;
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
 			throws ServletException, IOException {
-
+		System.out.println("In JwtAuthenticationFilter");
 		String token = extractBearerToken(req);
+		System.out.println("Token :: " + token);
 		if (StringUtils.hasText(token)) {
+			System.out.println("In if JwtAuthenticationFilter");
 			try {
-				if (tokenService.isTokenValid(token)) {	//!tokenService.isTokenValid(token)
+				if (!tokenService.isTokenValid(token)) {
 					res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token is invalid or has been revoked");
 					return;
 				}
 				Claims claims = tokenService.extractAllClaims(token);
 
 				@SuppressWarnings("unchecked")
-				List<String> permissions = (List<String>) claims.get("permission");
+				List<String> permissions = (List<String>) claims.get("permissions");
 				List<SimpleGrantedAuthority> authorities = permissions.stream().map(SimpleGrantedAuthority::new)
 						.collect(Collectors.toList());
 
@@ -54,7 +57,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
 
 				SecurityContextHolder.getContext().setAuthentication(auth);
-
 				req.setAttribute("userId", claims.getSubject());
 				req.setAttribute("userEmail", claims.get("email", String.class));
 				req.setAttribute("jti", claims.getId());
@@ -68,7 +70,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token invalid");
 				return;
 			}
+		} else {
+			System.out.println("In else JwtAuthenticationFilter");
 		}
+
+		chain.doFilter(req, res);
 	}
 
 	private String extractBearerToken(HttpServletRequest req) {

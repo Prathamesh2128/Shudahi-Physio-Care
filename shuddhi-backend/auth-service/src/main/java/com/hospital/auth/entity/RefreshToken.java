@@ -19,8 +19,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "refresh_tokens", indexes = { @Index(name = "idx_refresh_token_user", columnList = "user_id"),
-		@Index(name = "idx_refresh_token_hash", columnList = "token_hash", unique = true) })
+@Table(name = "refresh_tokens", indexes = { @Index(name = "idx_rt_user_id", columnList = "user_id"),
+		@Index(name = "idx_rt_token_hash", columnList = "token_hash", unique = true),
+		@Index(name = "idx_rt_revoked", columnList = "revoked_at") })
 @Getter
 @Setter
 @AllArgsConstructor
@@ -49,11 +50,18 @@ public class RefreshToken extends BaseEntity {
 
 	private UUID revokedBy;
 
+	@Column(name = "replaced_by_hash") // links to the next rotation's token
+	private String replacedByHash;
+
 	public boolean isExpired() {
 		return LocalDateTime.now().isAfter(expiresAt);
 	}
 
 	public boolean isRevoked() {
 		return revokedAt != null;
+	}
+
+	public boolean isValid() {
+		return !isExpired() && !isRevoked();
 	}
 }

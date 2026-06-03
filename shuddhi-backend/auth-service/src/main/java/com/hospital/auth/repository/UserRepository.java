@@ -24,6 +24,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 			""")
 	Optional<User> findByEmailIgnoreCaseWithRoleAndPermission(@Param("email") String email);
 
+	@Query("""
+			SELECT DISTINCT u FROM User u
+			LEFT JOIN FETCH u.roles r
+			LEFT JOIN FETCH r.permissions
+			WHERE u.id = :id AND u.isActive = true
+			""")
+	Optional<User> findByIdWithRolesAndPermissions(@Param("id") UUID id);
+
 	boolean existsByUsername(String username);
 
 }

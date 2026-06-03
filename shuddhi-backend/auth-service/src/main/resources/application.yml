@@ -1,0 +1,52 @@
+server:
+  port: 8001
+  
+# --- ADD THIS LOGGING BLOCK HERE ---
+logging:
+  level:
+    org.springframework.security: DEBUG
+# -----------------------------------
+  
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:3306/shuddhi_auth_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASS:pgdac}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      
+  mail:
+    host: ${MAIL_HOST}
+    port: 587
+    username: ${MAIL_USER:root}
+    password: ${MAIL_PASS:root}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      
+hms:
+  jwt:
+    access-secret: ${JWT_ACCESS_SECRET:******MySecurityKeyForSuddhiPhysio---shuddhiPhysio******}     # min 32-char secret, Base64
+    refresh-secret: ${JWT_REFRESH_SECRET:******MyRefreshhSecurityKeyForSuddhiPhysio---suddhiphysio******}
+    access-expiry-seconds: 900              # 15 minutes
+    refresh-expiry-days: 7
+  security:
+    max-login-attempts: 5
+    lockout-duration-minutes: 30
+    password-reset-expiry-minutes: 15
+    email-otp-expiry-minutes: 15
+  cookie:
+    secure: true                            # false in dev
+    same-site: Strict
+    refresh-token-name: hms_rt

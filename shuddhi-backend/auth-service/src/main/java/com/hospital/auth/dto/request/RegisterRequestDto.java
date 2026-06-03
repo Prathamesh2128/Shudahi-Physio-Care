@@ -3,6 +3,8 @@ package com.hospital.auth.dto.request;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.hospital.auth.validator.StrongPassword;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -24,6 +26,7 @@ public class RegisterRequestDto {
 	@Email
 	private String email;
 
+	@StrongPassword
 	private String password;
 
 	private Set<String> roles = new HashSet<>();

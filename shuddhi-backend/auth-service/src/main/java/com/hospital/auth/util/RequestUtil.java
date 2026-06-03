@@ -19,6 +19,7 @@ public class RequestUtil {
 	public static String getClientIp(HttpServletRequest req) {
 		for (String header : IP_HEADERS) {
 			String value = req.getHeader(header);
+			System.out.println("Req Headers :: " + value);
 			if (value != null && !value.isEmpty() && !"unknown".equalsIgnoreCase(value)) {
 				// X-Forwarded-For may be comma-separated — first entry is the real client
 				return value.split(",")[0].trim();

@@ -31,7 +31,7 @@ public class TokenServiceImpl {
 
 	private final JwtConfig jwtConfig;
 	private final StringRedisTemplate redis;
-
+	private final SessionServiceImpl sessionService;
 	// ── Access token ──────────────────────────────────────────────
 	// Generate a signed HS256 access token.
 
@@ -43,7 +43,7 @@ public class TokenServiceImpl {
 	// 5. roles - slug list ["doctor:, "dept_head"]
 	// 6. permissions - full flat permission list ["appointments:read_all", ...]
 	// 7. iat / exp - issued-at and expiry (standard claims)
-	public String generateAccessToken(User user, List<String> permissions) {
+	public String generateAccessToken(User user, List<String> permissions, String ipAddress, String deviceInfo) {
 		String jti = UUID.randomUUID().toString();
 
 		List<String> roleSlugs = user.getRoles().stream().map(r -> r.getSlug()).sorted().collect(Collectors.toList());
@@ -60,13 +60,16 @@ public class TokenServiceImpl {
 		redis.opsForValue().set("session:jti:" + jti, user.getId().toString(),
 				Duration.ofSeconds(jwtConfig.getAccessExpirySeconds()));
 
+		// Persist session with JTI for blacklisting
+		sessionService.createSession(jti, user.getId(), ipAddress, deviceInfo, jwtConfig.getAccessExpirySeconds());
+
 		log.debug("Access token generated for user {} (jti={})", user.getEmail(), jti);
 		return token;
 	}
 
 	// ── Refresh token ─────────────────────────────────────────────
 
-	// Refresh token is minimal - Only Sub + jit +exp.
+	// Refresh token is minimal - Only Sub + jit + exp.
 	// No Permission or roles - those are re-fetch form DB on refresh.
 	// This ensure role changes take effect
 	// at the next refresh.
@@ -80,11 +83,18 @@ public class TokenServiceImpl {
 
 	// ── Claim extraction ──────────────────────────────────────────
 	public Claims extractAllClaims(String token) {
-		return Jwts.parser().verifyWith(getAccessKey()).build().parseSignedClaims(token).getPayload();
+		Claims claims = Jwts.parser().verifyWith(getAccessKey()).build().parseSignedClaims(token).getPayload();
+		System.out.println("extractAllClaims Payload :: " + claims);
+		return claims;
+	}
+
+	public Claims extractRefreshClaims(String refreshToken) {
+		return Jwts.parser().verifyWith(getRefreshKey()).build().parseSignedClaims(refreshToken).getPayload();
 	}
 
 	// ── Blacklist ─────────────────────────────────────────────────
 	public void blacklistToken(String jti, long remainingSeconds) {
+		System.out.println("In blacklistToken");
 		redis.opsForValue().set("blacklist:jti:" + jti, "1", Duration.ofSeconds(remainingSeconds));
 		redis.delete("session:jti:" + jti);
 		log.debug("Blacklisted token jti={}", jti);
@@ -97,8 +107,10 @@ public class TokenServiceImpl {
 	// ── Validity check ────────────────────────────────────────────
 	public boolean isTokenValid(String token) {
 		try {
+			System.out.println("In isTokenValid");
 			Claims c = extractAllClaims(token);
-			return isBlacklisted(c.getId()); // return !isBlacklisted(c.getId());
+			System.out.println("Claims c :: " + c);
+			return !isBlacklisted(c.getId());
 		} catch (JwtException e) {
 			log.debug("Token validation failed: {}", e.getMessage());
 			return false;

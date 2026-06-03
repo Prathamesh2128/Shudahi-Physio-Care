@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hospital.auth.dto.request.LoginRequestDto;
 import com.hospital.auth.dto.request.RegisterRequestDto;
+import com.hospital.auth.dto.response.LogoutResponse;
 import com.hospital.auth.dto.response.RegisterResponseDto;
 import com.hospital.auth.dto.response.UserResponseDto;
 import com.hospital.auth.entity.Permission;
@@ -28,8 +30,12 @@ import com.hospital.auth.exception.UnauthorizedException;
 import com.hospital.auth.mapper.UserMapper;
 import com.hospital.auth.repository.RefreshTokenRepository;
 import com.hospital.auth.repository.RoleRepository;
+import com.hospital.auth.repository.SessionRepository;
 import com.hospital.auth.repository.UserRepository;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,6 +52,7 @@ public class AuthServiceImpl implements IAuthService {
 	private final RefreshTokenRepository refreshTokenRepository;
 	private final CacheEvictionService cacheEvictionService;
 	private final UserMapper userMapper;
+	private final SessionRepository sessionRepository;
 
 	@Value("${hms.security.max-login-attempts:5}")
 	private int maxLoginAttempts;
@@ -54,40 +61,10 @@ public class AuthServiceImpl implements IAuthService {
 	private int lockoutMinutes;
 
 	// ── Internal result record (Java 16+)
-	public record LoginResult(String accessToken, String rawRefreshToken, // goes to cookie only
-			UserResponseDto userResponse) {
+	public record LoginResult(String accessToken, String rawRefreshToken, UserResponseDto userResponse) {
 	}
 
-	@Override
-	@Transactional(rollbackFor = Exception.class)
-	public RegisterResponseDto registerUser(RegisterRequestDto userReqDto) {
-		Set<Role> roles = roleRepository.findByNameIn(userReqDto.getRoles());
-		if (userReqDto.getRoles().size() != roles.size()) {
-			throw new NotFoundException("Selelct valid role :: " + userReqDto.getRoles());
-		}
-
-		User user = new User();
-		user.setFullName(userReqDto.getFullName());
-		user.setUsername(userReqDto.getUsername());
-		user.setEmail(userReqDto.getEmail());
-		user.setPasswordHash(userReqDto.getPassword());
-		user.setPhone(userReqDto.getPhone());
-		user.setRoles(new HashSet<>(roles));
-		userRepository.save(user);
-
-		RegisterResponseDto regResDto = new RegisterResponseDto();
-		regResDto.setFullName(userReqDto.getFullName());
-		regResDto.setUsername(userReqDto.getUsername());
-		regResDto.setEmail(userReqDto.getEmail());
-		regResDto.setPhone(userReqDto.getPhone());
-		Set<String> roleNames = new HashSet<>();
-		for (Role r : roles) {
-			roleNames.add(r.getName());
-		}
-
-		regResDto.setRoles(roleNames);
-
-		return regResDto;
+	public record RefreshResult(String newAccessToken, String newRawRefreshToken, UserResponseDto userResponse) {
 	}
 
 	@Override
@@ -135,8 +112,11 @@ public class AuthServiceImpl implements IAuthService {
 		List<String> permissions = collectPermissions(user);
 
 		// 8. Generate tokens
-		String accessToken = tokenService.generateAccessToken(user, permissions);
+		String accessToken = tokenService.generateAccessToken(user, permissions, ipAddress, deviceInfo);
 		String refreshToken = tokenService.generateRefreshToken(user);
+
+		System.out.println("accessToken :: " + accessToken);
+		System.out.println("refreshToken :: " + refreshToken);
 
 		// 9. Persist refresh token (stored as SHA-256 hash, never raw)
 		String tokenHash = tokenService.hashToken(refreshToken);
@@ -154,6 +134,157 @@ public class AuthServiceImpl implements IAuthService {
 		return new LoginResult(accessToken, refreshToken, userMapper.toUserResponse(user, roleSlugs, permissions));
 	}
 
+	@Override
+	@Transactional
+	public LogoutResponse logout(UUID userId, String jti, String rawRefreshToken, String ipAddress) {
+		System.out.println("In logout");
+		int revoked = 0;
+
+		// 1. Blacklist the current access token JTI in Redis so it stops working
+		// instantly — even before it expires
+		System.out.println("In above if");
+		if (jti != null) {
+			System.out.println("jti In if");
+			tokenService.blacklistToken(jti, 900); // TTL matches access token lifetime
+			revoked++;
+		}
+
+		if (rawRefreshToken != null) {
+			String hash = tokenService.hashToken(rawRefreshToken);
+			refreshTokenRepository.revokeByHash(hash, LocalDateTime.now());
+		}
+
+		if (jti != null) {
+			sessionRepository.findByTokenJti(jti).ifPresent(session -> {
+				session.setIsRevoked(true);
+				sessionRepository.save(session);
+			});
+		}
+
+		cacheEvictionService.evictUserProfile(userId);
+		auditService.log(userId, "logout", "user", userId, null, Map.of("sesionRevoked", revoked), ipAddress);
+
+		log.info("User {} logged out (jti={})", userId, jti);
+
+		return LogoutResponse.builder().message("Logged out successfully").allDevices(false).sessionsRevoked(revoked)
+				.build();
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public RegisterResponseDto registerUser(RegisterRequestDto userReqDto) {
+		Set<Role> roles = roleRepository.findByNameIn(userReqDto.getRoles());
+		if (userReqDto.getRoles().size() != roles.size()) {
+			throw new NotFoundException("Selelct valid role :: " + userReqDto.getRoles());
+		}
+
+		User user = new User();
+		user.setFullName(userReqDto.getFullName());
+		user.setUsername(userReqDto.getUsername());
+		user.setEmail(userReqDto.getEmail());
+		user.setPasswordHash(userReqDto.getPassword());
+		user.setPhone(userReqDto.getPhone());
+		user.setRoles(new HashSet<>(roles));
+		userRepository.save(user);
+
+		RegisterResponseDto regResDto = new RegisterResponseDto();
+		regResDto.setFullName(userReqDto.getFullName());
+		regResDto.setUsername(userReqDto.getUsername());
+		regResDto.setEmail(userReqDto.getEmail());
+		regResDto.setPhone(userReqDto.getPhone());
+		Set<String> roleNames = new HashSet<>();
+		for (Role r : roles) {
+			roleNames.add(r.getName());
+		}
+
+		regResDto.setRoles(roleNames);
+
+		return regResDto;
+	}
+
+	@Override
+	@Transactional
+	public RefreshResult refreshAccessToken(String rawRefreshToken, String ipAddress) {
+		// 1. Verify JWT signature and expiry on the raw token
+		Claims claims;
+		try {
+			claims = tokenService.extractRefreshClaims(rawRefreshToken);
+		} catch (ExpiredJwtException e) {
+			throw new UnauthorizedException("Session expired. Please login again");
+		} catch (JwtException e) {
+			throw new UnauthorizedException("Invalid refresh token");
+		}
+
+		UUID userId = UUID.fromString(claims.getSubject());
+		String inHash = tokenService.hashToken(rawRefreshToken);
+
+		// 2. Look up the hashed token in the database
+		RefreshToken stored = refreshTokenRepository.findByTokenHashAndRevokedAtIsNull(inHash).orElseGet(() -> {
+			log.warn("Refresh token reuse detected for user {}. Revoking all sessions.", userId);
+			refreshTokenRepository.revokeAllForUser(userId, LocalDateTime.now());
+			auditService.log(userId, "refresh.token.reuse_detected", "user", userId, null, null, ipAddress);
+			throw new UnauthorizedException("Session invalidated due to suspicious activity. Please login again.");
+		});
+
+		// 3. Extra validity check (double-check DB-level expiry)
+		if (stored.isExpired()) {
+			stored.setRevokedAt(LocalDateTime.now());
+			refreshTokenRepository.save(stored);
+		}
+
+		// 4. Load user with fresh roles and permissions from DB
+		User user = userRepository.findByIdWithRolesAndPermissions(userId)
+				.orElseThrow(() -> new UnauthorizedException("User account not found."));
+		if (!user.getIsActive()) {
+			throw new ForbiddenException("Account deactivated. Please contact admin.");
+		}
+
+		// 5. Generate new tokens BEFORE revoking old one
+		// (avoids a window where user has no valid token if generation fails)
+		List<String> permissions = collectPermissions(user);
+		String newAccessToken = tokenService.generateAccessToken(user, permissions, ipAddress, inHash);
+		String newRawRefresh = tokenService.generateRefreshToken(user);
+		String newHash = tokenService.hashToken(newRawRefresh);
+
+		// 6. Rotate: revoke old refresh token and link to new one
+		stored.setRevokedAt(LocalDateTime.now());
+		stored.setReplacedByHash(newHash);
+		refreshTokenRepository.save(stored);
+
+		// 7. Persist new refresh token
+		refreshTokenRepository.save(RefreshToken.builder().user(user).tokenHash(newHash)
+				.deviceInfo(stored.getDeviceInfo()).ipAddress(ipAddress).issuedAt(LocalDateTime.now())
+				.expiresAt(LocalDateTime.now().plusDays(7)).build());
+
+		// 8. Evict cached profile so any role changes take effect immediately
+		cacheEvictionService.evictUserProfile(userId);
+
+		// 9. Async audit
+		auditService.log(userId, "token.refreshed", "user", userId, null, null, ipAddress);
+		log.debug("Token rotated for user {}", user.getEmail());
+
+		List<String> roleSlugs = user.getRoles().stream().map(Role::getSlug).sorted().collect(Collectors.toList());
+
+		return new RefreshResult(newAccessToken, newRawRefresh,
+				userMapper.toUserResponse(user, roleSlugs, permissions));
+	}
+
+	@Override
+	public List<UserResponseDto> findAllUsers() {
+		List<User> usersList = userRepository.findAll();
+		List<UserResponseDto> userResDto = new ArrayList<>();
+
+		for (User u : usersList) {
+			UserResponseDto dto = UserResponseDto.builder().id(u.getId()).fullName(u.getFullName()).phone(u.getPhone())
+					.employeeId(u.getEmployeeId()).isActive(u.getIsActive()).emailVerified(u.getEmailVerified())
+					.build();
+
+			userResDto.add(dto);
+		}
+		return userResDto;
+	}
+
+	// Healper Methods
 	private List<String> collectPermissions(User user) {
 		return user.getRoles().stream().flatMap(role -> role.getPermissions().stream()).map(Permission::getSlug)
 				.distinct().sorted().collect(Collectors.toList());
@@ -173,18 +304,4 @@ public class AuthServiceImpl implements IAuthService {
 		}
 	}
 
-	@Override
-	public List<UserResponseDto> findAllUsers() {
-		List<User> usersList = userRepository.findAll();
-		List<UserResponseDto> userResDto = new ArrayList<>();
-
-		for (User u : usersList) {
-			UserResponseDto dto = UserResponseDto.builder().id(u.getId()).fullName(u.getFullName()).phone(u.getPhone())
-					.employeeId(u.getEmployeeId()).isActive(u.getIsActive()).emailVerified(u.getEmailVerified())
-					.build();
-
-			userResDto.add(dto);
-		}
-		return userResDto;
-	}
 }
