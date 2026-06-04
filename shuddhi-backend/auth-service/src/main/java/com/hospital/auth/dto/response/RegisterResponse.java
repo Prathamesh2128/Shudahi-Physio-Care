@@ -1,6 +1,6 @@
 package com.hospital.auth.dto.response;
 
-import java.util.Set;
+import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,10 +11,13 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-public class RegisterResponseDto {
-	private String username;
+public class RegisterResponse {
+	private UUID id;
 	private String fullName;
-	private String phone;
 	private String email;
-	private Set<String> roles;
+	private boolean isActive;
+	private boolean emailVerified;
+	private String phone;
+
+	private String message; // "Please verify your email"
 }

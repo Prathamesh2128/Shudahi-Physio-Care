@@ -38,7 +38,7 @@ public class CookieUtil {
 		Cookie cookie = new Cookie(cookieName, rawToken);
 		cookie.setHttpOnly(true);
 		cookie.setSecure(secure);
-//		cookie.setPath("/api/v1/auth/refresh");
+		cookie.setPath("/api/v1/auth/refresh");
 		cookie.setMaxAge(7 * 24 * 60 * 60); // 604800 seconds = 7 days
 		cookie.setAttribute("SameSite", sameSite);
 		return cookie;

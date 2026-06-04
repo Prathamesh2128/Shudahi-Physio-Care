@@ -2,10 +2,8 @@ package com.hospital.auth.service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -17,19 +15,18 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hospital.auth.dto.request.LoginRequestDto;
 import com.hospital.auth.dto.request.RegisterRequestDto;
 import com.hospital.auth.dto.response.LogoutResponse;
-import com.hospital.auth.dto.response.RegisterResponseDto;
+import com.hospital.auth.dto.response.RegisterResponse;
 import com.hospital.auth.dto.response.UserResponseDto;
 import com.hospital.auth.entity.Permission;
 import com.hospital.auth.entity.RefreshToken;
 import com.hospital.auth.entity.Role;
+import com.hospital.auth.entity.Session;
 import com.hospital.auth.entity.User;
 import com.hospital.auth.exception.AccountLockedException;
 import com.hospital.auth.exception.ForbiddenException;
-import com.hospital.auth.exception.NotFoundException;
 import com.hospital.auth.exception.UnauthorizedException;
 import com.hospital.auth.mapper.UserMapper;
 import com.hospital.auth.repository.RefreshTokenRepository;
-import com.hospital.auth.repository.RoleRepository;
 import com.hospital.auth.repository.SessionRepository;
 import com.hospital.auth.repository.UserRepository;
 
@@ -45,7 +42,6 @@ import lombok.extern.slf4j.Slf4j;
 public class AuthServiceImpl implements IAuthService {
 
 	private final UserRepository userRepository;
-	private final RoleRepository roleRepository;
 	private final AuditService auditService;
 	private final PasswordEncoder passwordEncoder;
 	private final TokenServiceImpl tokenService;
@@ -171,35 +167,40 @@ public class AuthServiceImpl implements IAuthService {
 	}
 
 	@Override
+	@Transactional
+	public LogoutResponse logoutFromAllDevice(UUID userId, String currentJti, String ipAddress) {
+		System.out.println("In logoutFromAllDevice service");
+		// 1. Collect all active sessions for this user
+		List<Session> activeSessions = sessionRepository.findActiveSessionsByUserId(userId, LocalDateTime.now());
+
+		// 2. Blacklist every JTI immediately in Redis
+		activeSessions.forEach(s -> tokenService.blacklistToken(s.getTokenJti(), 900));
+
+		// 3. Revoke all sessions in DB at once
+		sessionRepository.revokeAllForUser(userId);
+
+		// 4. Revoke all refresh tokens in DB
+		refreshTokenRepository.revokeAllForUser(userId, LocalDateTime.now());
+
+		int count = activeSessions.size();
+
+		// 5. Evict cache
+		cacheEvictionService.evictUserProfile(userId);
+
+		// 6. Audit
+		auditService.log(userId, "logout.all_devices", "user", userId, null, java.util.Map.of("sessionsRevoked", count,
+				"triggeredByJti", currentJti != null ? currentJti : "unknown"), ipAddress);
+
+		log.info("User {} logged out from all {} devices", userId, count);
+
+		return LogoutResponse.builder().message("Signed out from all " + count + " device(s)").allDevices(true)
+				.sessionsRevoked(count).build();
+	}
+
+	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public RegisterResponseDto registerUser(RegisterRequestDto userReqDto) {
-		Set<Role> roles = roleRepository.findByNameIn(userReqDto.getRoles());
-		if (userReqDto.getRoles().size() != roles.size()) {
-			throw new NotFoundException("Selelct valid role :: " + userReqDto.getRoles());
-		}
-
-		User user = new User();
-		user.setFullName(userReqDto.getFullName());
-		user.setUsername(userReqDto.getUsername());
-		user.setEmail(userReqDto.getEmail());
-		user.setPasswordHash(userReqDto.getPassword());
-		user.setPhone(userReqDto.getPhone());
-		user.setRoles(new HashSet<>(roles));
-		userRepository.save(user);
-
-		RegisterResponseDto regResDto = new RegisterResponseDto();
-		regResDto.setFullName(userReqDto.getFullName());
-		regResDto.setUsername(userReqDto.getUsername());
-		regResDto.setEmail(userReqDto.getEmail());
-		regResDto.setPhone(userReqDto.getPhone());
-		Set<String> roleNames = new HashSet<>();
-		for (Role r : roles) {
-			roleNames.add(r.getName());
-		}
-
-		regResDto.setRoles(roleNames);
-
-		return regResDto;
+	public RegisterResponse registerUser(RegisterRequestDto userReqDto) {
+		return null;
 	}
 
 	@Override

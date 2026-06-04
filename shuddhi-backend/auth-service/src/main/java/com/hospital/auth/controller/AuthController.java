@@ -17,7 +17,7 @@ import com.hospital.auth.dto.request.RegisterRequestDto;
 import com.hospital.auth.dto.response.ApiResponse;
 import com.hospital.auth.dto.response.LoginResponseDto;
 import com.hospital.auth.dto.response.LogoutResponse;
-import com.hospital.auth.dto.response.RegisterResponseDto;
+import com.hospital.auth.dto.response.RegisterResponse;
 import com.hospital.auth.dto.response.UserResponseDto;
 import com.hospital.auth.exception.UnauthorizedException;
 import com.hospital.auth.service.AuthServiceImpl;
@@ -107,6 +107,27 @@ public class AuthController {
 		return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok("Logout successfully", result));
 	}
 
+	/**
+	 * POST /api/v1/auth/logout/all
+	 *
+	 * Logs out from ALL devices — revokes every session and refresh token the user
+	 * has across every device.
+	 *
+	 * Auth : Requires valid JWT Bearer token
+	 */
+
+	@PostMapping("/logout/all")
+	public ResponseEntity<ApiResponse<LogoutResponse>> logoutAll(@AuthenticationPrincipal String userId,
+			HttpServletRequest httpReq, HttpServletResponse httpRes) {
+
+		String jti = (String) httpReq.getAttribute("jti");
+		String ipAddress = RequestUtil.getClientIp(httpReq);
+
+		LogoutResponse result = authService.logoutFromAllDevice(UUID.fromString(userId), jti, ipAddress);
+		httpRes.addCookie(cookieUtil.clearRefreshCookie());
+		return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok(result));
+	}
+
 	@PostMapping("/refresh")
 	public ResponseEntity<ApiResponse<LoginResponseDto>> refresh(HttpServletRequest httpReq,
 			HttpServletResponse httpRes) {
@@ -125,9 +146,9 @@ public class AuthController {
 	}
 
 	@PostMapping("/register")
-	public ResponseEntity<ApiResponse<RegisterResponseDto>> registerUser(
+	public ResponseEntity<ApiResponse<RegisterResponse>> registerUser(
 			@Valid @RequestBody RegisterRequestDto regReqDto) {
-		RegisterResponseDto regResDto = authService.registerUser(regReqDto);
+		RegisterResponse regResDto = authService.registerUser(regReqDto);
 		return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("User successfully register.", regResDto));
 	}
 

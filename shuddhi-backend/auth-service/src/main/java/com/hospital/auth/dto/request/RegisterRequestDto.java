@@ -1,33 +1,34 @@
 package com.hospital.auth.dto.request;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import com.hospital.auth.validator.StrongPassword;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class RegisterRequestDto {
-	private String username;
 
-	@NotBlank
-	@Size(min = 2, max = 100, message = "Enter valid full name")
+	@NotBlank(message = "Full name is required")
+	@Size(min = 2, max = 120, message = "Full name must be between 2 and 120 characters")
 	private String fullName;
 
-	@Pattern(regexp = "^(\\+91[- ]?)?[6-9]\\d{9}$", message = "Enter valid mobile number")
-	private String phone;
-
-	@NotBlank
-	@Email
+	@NotNull(message = "Email is required")
+	@Email(message = "Must be a valid email address")
 	private String email;
 
+	@NotBlank
+	@Pattern(regexp = "^\\+[1-9]\\d{6,14}$", message = "Phone must be in E.164 format e.g. +919876543210")
+	private String phone;
+
+	@NotBlank(message = "Password is requred")
 	@StrongPassword
 	private String password;
 
-	private Set<String> roles = new HashSet<>();
+	// Optional — provided if staff created account on behalf of patient
+	private String employeeId;
+	private String refrralCode;
 }
