@@ -17,7 +17,6 @@ import com.hospital.auth.dto.request.RegisterRequestDto;
 import com.hospital.auth.dto.response.ApiResponse;
 import com.hospital.auth.dto.response.LoginResponseDto;
 import com.hospital.auth.dto.response.LogoutResponse;
-import com.hospital.auth.dto.response.RegisterResponse;
 import com.hospital.auth.dto.response.UserResponseDto;
 import com.hospital.auth.exception.UnauthorizedException;
 import com.hospital.auth.service.AuthServiceImpl;
@@ -61,9 +60,6 @@ public class AuthController {
 		String deviceInfo = RequestUtil.resolveDeviceInfo(req, httpReq);
 
 		AuthServiceImpl.LoginResult result = authService.login(req, ip, deviceInfo);
-
-		System.out.println("result :: " + result);
-		System.out.println("refreshToken :: " + result.rawRefreshToken());
 
 		// Refresh token → httpOnly secure cookie (never in response body)
 		httpRes.addCookie(cookieUtil.buildRefreshCookie(result.rawRefreshToken()));
@@ -146,10 +142,9 @@ public class AuthController {
 	}
 
 	@PostMapping("/register")
-	public ResponseEntity<ApiResponse<RegisterResponse>> registerUser(
-			@Valid @RequestBody RegisterRequestDto regReqDto) {
-		RegisterResponse regResDto = authService.registerUser(regReqDto);
-		return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("User successfully register.", regResDto));
+	public ResponseEntity<ApiResponse<UserResponseDto>> registerUser(@Valid @RequestBody RegisterRequestDto regReqDto) {
+		return ResponseEntity.status(HttpStatus.CREATED)
+				.body(ApiResponse.ok("User successfully register.", authService.register(regReqDto)));
 	}
 
 	@GetMapping("/all")

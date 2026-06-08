@@ -2,8 +2,10 @@ package com.hospital.auth.service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -15,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hospital.auth.dto.request.LoginRequestDto;
 import com.hospital.auth.dto.request.RegisterRequestDto;
 import com.hospital.auth.dto.response.LogoutResponse;
-import com.hospital.auth.dto.response.RegisterResponse;
 import com.hospital.auth.dto.response.UserResponseDto;
 import com.hospital.auth.entity.Permission;
 import com.hospital.auth.entity.RefreshToken;
@@ -23,10 +24,13 @@ import com.hospital.auth.entity.Role;
 import com.hospital.auth.entity.Session;
 import com.hospital.auth.entity.User;
 import com.hospital.auth.exception.AccountLockedException;
+import com.hospital.auth.exception.ConflictException;
 import com.hospital.auth.exception.ForbiddenException;
+import com.hospital.auth.exception.ServerException;
 import com.hospital.auth.exception.UnauthorizedException;
 import com.hospital.auth.mapper.UserMapper;
 import com.hospital.auth.repository.RefreshTokenRepository;
+import com.hospital.auth.repository.RoleRepository;
 import com.hospital.auth.repository.SessionRepository;
 import com.hospital.auth.repository.UserRepository;
 
@@ -49,6 +53,7 @@ public class AuthServiceImpl implements IAuthService {
 	private final CacheEvictionService cacheEvictionService;
 	private final UserMapper userMapper;
 	private final SessionRepository sessionRepository;
+	private final RoleRepository roleRepository;
 
 	@Value("${hms.security.max-login-attempts:5}")
 	private int maxLoginAttempts;
@@ -199,8 +204,26 @@ public class AuthServiceImpl implements IAuthService {
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public RegisterResponse registerUser(RegisterRequestDto userReqDto) {
-		return null;
+	public UserResponseDto register(RegisterRequestDto req) {
+		if (userRepository.existsByEmailIgnoreCase(req.getEmail())) {
+			throw new ConflictException("Emial already register");
+		}
+
+		if (userRepository.existsByUsername(req.getUsername())) {
+			throw new ConflictException("Username already register");
+		}
+
+		Role patinetRole = roleRepository.findBySlug("patient")
+				.orElseThrow(() -> new ServerException("Default role not found"));
+
+		User user = User.builder().fullName(req.getFullName()).email(req.getEmail()).username(req.getUsername())
+				.phone(req.getPhone()).passwordHash(passwordEncoder.encode(req.getPassword()))
+				.employeeId(req.getEmployeeId()).roles(Set.of(patinetRole)).isActive(false).emailVerified(false)
+				.build();
+		user = userRepository.save(user);
+
+		List<String> roleSlugs = user.getRoles().stream().map(Role::getSlug).sorted().collect(Collectors.toList());
+		return userMapper.toUserResponse(user, roleSlugs, Collections.emptyList());
 	}
 
 	@Override

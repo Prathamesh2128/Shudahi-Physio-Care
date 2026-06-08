@@ -6,7 +6,6 @@ import java.util.UUID;
 import com.hospital.auth.dto.request.LoginRequestDto;
 import com.hospital.auth.dto.request.RegisterRequestDto;
 import com.hospital.auth.dto.response.LogoutResponse;
-import com.hospital.auth.dto.response.RegisterResponse;
 import com.hospital.auth.dto.response.UserResponseDto;
 import com.hospital.auth.service.AuthServiceImpl.LoginResult;
 import com.hospital.auth.service.AuthServiceImpl.RefreshResult;
@@ -18,7 +17,7 @@ public interface IAuthService {
 
 	public LogoutResponse logoutFromAllDevice(UUID userId, String jti, String ipAddress);
 
-	public RegisterResponse registerUser(RegisterRequestDto req);
+	public UserResponseDto register(RegisterRequestDto req);
 
 	public List<UserResponseDto> findAllUsers();
 
