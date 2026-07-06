@@ -3,40 +3,48 @@ server:
 
 spring:
   application:
-    name: api-gateway
-
+    name: API-GATEWAY
   cloud:
     gateway:
-      routes:
+      server:
+        webmvc: # <-- CRITICAL EXACT PATH FOR BOOT 4 / CLOUD 2025
 
-        # 🔐 Auth Service
-        - id: auth-service
-          uri: http://localhost:8001
-          predicates:
-            - Path=/api/v1/auth/**
-          filters:
-            - StripPrefix=3
+          cors:
+             cors-configurations:
+               '[/**]':
+                 allowed-origins:
+                   - "http://localhost:5173"
+                 allowed-methods:
+                   - GET
+                   - POST
+                   - PUT
+                   - DELETE
+                   - OPTIONS
+                 allowed-headers:
+                   - "*"
+                 allow-credentials: true
+          routes:
+            - id: auth-service
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/v1/auth/**
 
-        # 👤 Patient Service
-        - id: patient-service
-          uri: http://localhost:8002
-          predicates:
-            - Path=/api/patients/**
-          filters:
-            - StripPrefix=2
+            - id: patient-service
+              uri: lb://PATIENT-SERVICE
+              predicates:
+                - Path=/api/v1/patient/**
 
-        # 👨‍⚕️ Doctor Service
-        - id: doctor-service
-          uri: http://localhost:8003
-          predicates:
-            - Path=/api/doctors/**
-          filters:
-            - StripPrefix=2
+            - id: doctor-service
+              uri: lb://DOCTOR-SERVICE
+              predicates:
+                - Path=/api/v1/doctor/**
 
-        # 📅 Appointment Service
-        - id: appointment-service
-          uri: http://localhost:8004
-          predicates:
-            - Path=/api/appointments/**
-          filters:
-            - StripPrefix=2
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+logging:
+  level:
+    org.springframework.cloud.gateway: TRACE
+    org.springframework.web.servlet.DispatcherServlet: DEBUG
